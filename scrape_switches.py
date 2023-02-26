@@ -138,9 +138,11 @@ def get_keys_switches(base, url):
         
         result.loc[i, "price"] = text.find(class_="product-single__price").text.strip("\n\\ ")
         
-        print(text.find(attrs={"checked": "checked", "name": "variant"}))
-        if text.find(attrs={"checked": "checked", "name": "variant"}) != None:
-            result.loc[i, "quantity"] = text.find(attrs={"checked": "checked", "name": "variant"}).get("value")
+        if text.find_all(attrs={"checked": "checked"}) != None:
+            temp = ""
+            for option in text.find_all(attrs={"checked": "checked"}):
+                temp += option.get("value")
+            result.loc[i, "quantity"] = temp
         elif text.find(class_="product-single__description rte") != None:
             result.loc[i, "quantity"] = ' '.join(x.text.strip() for x in text.find(class_="product-single__description rte").contents)
         
