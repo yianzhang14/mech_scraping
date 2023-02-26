@@ -297,7 +297,7 @@ def get_kbd_keycaps():
         
     pattern = re.compile('[\W_]+')    
     result["live"].apply(lambda x: pattern.sub('', x))
-    
+    result = result[result["live"] != "InterestCheckPending"]
     result["live"] = np.where(result["live"] == "PreOrder", False, True)
     
     return result

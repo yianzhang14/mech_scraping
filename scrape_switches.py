@@ -62,7 +62,7 @@ def get_novelkeys_switches():
     result["prices"] = prices
     
     result = result[result["in_stock"].isin(["IN STOCK", "LIMITED STOCK"])]
-    result = result.drop(["in_stock"])
+    result = result.drop(["in_stock"], axis=1)
     result["live"] = True
     
     return result
@@ -161,6 +161,8 @@ def get_kono_switches():
         
         result.loc[i, "vender"] = "Kono"
         result.loc[i, "url"] = link
+        if text.find("meta", {"property": "og:title"}) == None:
+            continue
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
         result.loc[i, "image"] = text.find("meta", {"property": "og:image"}).get("content")
@@ -185,11 +187,9 @@ def get_keys_switches():
     url = "https://thekey.company/collections/in-stock/switches"
     
     paths = get_links(url)
-    print(paths)
     result = pd.DataFrame(index=range(len(paths)))
     for i, path in enumerate(paths):
         link = base + path
-        print(link)
         curr = requests.get(link, headers=headers)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
