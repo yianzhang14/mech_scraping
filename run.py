@@ -16,14 +16,15 @@ if __name__ == "__main__":
     # df = pd.concat(x, ignore_index=True)
     # df.to_csv("keycaps.csv")
     
-    
-    switches = (get_kbd_switches, get_cannon_switches, get_dang_switches, get_keys_switches, get_kono_switches, get_novelkeys_switches)
-    y = []
-    for i, func in enumerate(switches):
-        curr = func()
-        y.append(curr)  
-        curr.to_csv(str(i) + ".csv")
-        print(i)
+    # get_kono_switches().to_csv("temp.csv")
+    # switches = (get_kbd_switches, get_cannon_switches, get_dang_switches, get_keys_switches, get_kono_switches, get_novelkeys_switches)
+    # y = []
+    # for i, func in enumerate(switches):
+    #     curr = func()
+    #     y.append(curr)  
+    #     curr.to_csv(str(i) + ".csv")
+    #     print(i)
         
-    df_switch = pd.concat(y, ignore_index=True)
-    df_switches.to_csv("switches.csv")
+    # df_switch = pd.concat(y, ignore_index=True)
+    # df_switches.to_csv("switches.csv")
+    get_dang_switches().to_csv("abcdefg.csv")

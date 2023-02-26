@@ -48,7 +48,7 @@ def get_novelkeys_switches():
         curr = requests.get(link)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
-        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "vender"] = "NovelKeys"
         result.loc[i, "url"] = link
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
@@ -78,7 +78,7 @@ def get_dang_switches():
         curr = requests.get(link)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
-        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "vender"] = "DangKeebs"
         result.loc[i, "url"] = link
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
@@ -96,11 +96,14 @@ def get_dang_switches():
             if "selected" in option.attrs:
                 result.loc[i, "kit"] = str(option.contents).strip("[\n]\\n' ")
                 
-        result.loc[i, "quantity"] = ' '.join(x.text.strip() for x in text.find("div", class_="product-single__description rte").contents)
+        if text.find("div", class_="product-single__description rte") != None:
+            for x in text.find("div", class_="product-single__description rte").find_all("strong"):
+                if "switch" in x.text and "Quantity" in x.text:
+                    result.loc[i, "quantity"] = x.text.strip()
         
     result = result[result["in_stock"] == "Add to cart"]
     result["live"] = result["product"].str.contains("\[")
-    result = result.drop(["availability", "kit"], axis=1)
+    result = result.drop(["in_stock", "kit"], axis=1)
     
     return result
 
@@ -125,7 +128,7 @@ def get_cannon_switches():
         curr = requests.get(link, headers=headers)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
-        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "vender"] = "Cannon Keys"
         result.loc[i, "url"] = link
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
@@ -141,11 +144,6 @@ def get_cannon_switches():
             
         if text.find(class_="option-selector__btns") != None:
             result.loc[i, 'quantity'] = text.find(class_="option-selector__btns").contents[0].get("value")
-        
-        # result.loc[i, "in_stock"] = text.find(attrs=in_stock_query).text.strip("\n\\ ")
-    
-    result = result[result["in_stock"]]
-    result = result.drop(["in_stock"], axis=1)
     
     return result
 
@@ -161,7 +159,7 @@ def get_kono_switches():
         curr = requests.get(link)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
-        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "vender"] = "Kono"
         result.loc[i, "url"] = link
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
@@ -173,8 +171,11 @@ def get_kono_switches():
         
         if text.find("div", class_="product-description rte") == None:
             continue
-    
-        result.loc[i, "quantity"] = ' '.join(x.text.strip() for x in text.find("div", class_="product-description rte").contents)
+        
+        temp = ' '.join(x.text.strip() for x in text.find("div", class_="product-description rte").contents)
+        regex = re.search("[0-9- ]{2,3}switches|[0-9]{2} count packs", temp, re.IGNORECASE)
+        if regex:      
+            result.loc[i, "quantity"] = regex.group()
     
     
     return result
@@ -184,15 +185,15 @@ def get_keys_switches():
     url = "https://thekey.company/collections/in-stock/switches"
     
     paths = get_links(url)
-
-    paths = ["/collections/in-stock/products/akko-v3-cream-blue-switches"]
+    print(paths)
     result = pd.DataFrame(index=range(len(paths)))
     for i, path in enumerate(paths):
         link = base + path
+        print(link)
         curr = requests.get(link, headers=headers)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
-        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "vender"] = "The Key Company"
         result.loc[i, "url"] = link
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
@@ -206,7 +207,10 @@ def get_keys_switches():
                 temp += option.get("value")
             result.loc[i, "quantity"] = temp
         elif text.find(attrs={"itemprop": "description"}) != None:
-            result.loc[i, "quantity"] = ' '.join(x.text.strip() for x in text.find(attrs={"itemprop": "description"}).contents)
+            temp = ' '.join(x.text.strip() for x in text.find(attrs={"itemprop": "description"}).contents)
+            regex = re.search("Sold in units of [0-9]{2}", temp, re.IGNORECASE)
+            if regex:
+                result.loc[i, "quantity"] = regex.group()
     
     result = result[result["product"] != "Gift Card"]
     result["live"] = True
@@ -237,7 +241,7 @@ def get_kbd_switches():
         curr = requests.get(link, headers=headers)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
-        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "vender"] = "KBDFans"
         result.loc[i, "url"] = link
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
@@ -257,7 +261,7 @@ def get_kbd_switches():
             
     pattern = re.compile('[\W_]+')    
     result["live"].apply(lambda x: pattern.sub('', x))
-    
+    result = result[result["live"] != "InterestCheckPending"]
     result["live"] = np.where(result["live"] == "PreOrder", False, True)
     
     return result
