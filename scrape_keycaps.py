@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import bs4 as bs
 import requests
+import re
 
 headers = {
     'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36'}
@@ -22,7 +23,10 @@ def get_links(url, query="products"):
                 paths.append(ref)
     return list(set(paths))
     
-def get_novelkeys_keycaps(base, url):
+def get_novelkeys_keycaps():
+    base = "https://novelkeys.com"
+    url = "https://novelkeys.com/collections/keycaps"
+    
     url = url + "?page="
     paths = []
     prices = []
@@ -44,20 +48,25 @@ def get_novelkeys_keycaps(base, url):
         curr = requests.get(link)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
-        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "vender"] = "NovelKeys"
         result.loc[i, "url"] = link
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
         result.loc[i, "image"] = text.find("meta", {"property": "og:image"}).get("content")
         
-        result.loc[i, "status"] = text.find(attrs="product-flag").text.strip("\n\\ ")
+        result.loc[i, "live"] = text.find(attrs="product-flag").text.strip("\n\\ ")
         
+    result["price"] = prices
     
-    result["prices"] = prices
+    result = result[~result["price"].str.contains("Sold out")]
+    result["live"] = np.where(result["live"].isin(["LIMITED STOCK", "IN STOCK", "CLEARANCE"]), True, False)
     
     return result
 
-def get_dang_keycaps(base, url):
+def get_dang_keycaps():
+    base = "https://dangkeebs.com"
+    url = "https://dangkeebs.com/collections/keycaps"
+    
     paths = get_links(url)
 
     result = pd.DataFrame(index=range(len(paths)))
@@ -66,7 +75,7 @@ def get_dang_keycaps(base, url):
         curr = requests.get(link, headers=headers)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
-        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "vender"] = "DangKeebs"
         result.loc[i, "url"] = link
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
@@ -83,11 +92,18 @@ def get_dang_keycaps(base, url):
         for option in text.find_all('option'):
             if "selected" in option.attrs:
                 result.loc[i, "kit"] = str(option.contents).strip("[\n]\\n' ")
+                
+    result = result[result["in_stock"] == "Add to cart"]
+    result["live"] = result["product"].str.contains("\[")
+    result = result.drop(["in_stock", "kit"], axis=1)
     
     return result
 
 
-def get_cannon_keycaps(base, url):
+def get_cannon_keycaps():
+    base = "https://cannonkeys.com"
+    url = "https://cannonkeys.com/collections/keycaps"
+    
     paths = get_links(url)
 
     result = pd.DataFrame(index=range(len(paths)))
@@ -98,7 +114,7 @@ def get_cannon_keycaps(base, url):
         curr = requests.get(link, headers=headers)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
-        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "vender"] = "CannonKeys"
         result.loc[i, "url"] = link
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
@@ -117,11 +133,17 @@ def get_cannon_keycaps(base, url):
             result.loc[i, "in_stock"] = False
         
         # result.loc[i, "in_stock"] = text.find(attrs=in_stock_query).text.strip("\n\\ ")
+        
+    result = result[result["in_stock"]]
+    result = result.drop(["in_stock"], axis=1)
     
     return result
 
-def get_space_keycaps(base, url):
+def get_space_keycaps():
+    base = "https://spaceholdings.net"
+    url = "https://spaceholdings.net/collections/keycaps"
     url = url + "?page="
+    
     paths = []
     prices = []
     seen = set()
@@ -144,7 +166,7 @@ def get_space_keycaps(base, url):
         curr = requests.get(link)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
-        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "vender"] = "Space Holdings"
         result.loc[i, "url"] = link
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
@@ -155,7 +177,9 @@ def get_space_keycaps(base, url):
     result["price"] = actual_price
     return result
 
-def get_osume_keycaps(base, url):
+def get_osume_keycaps():
+    base = "https://osumekeys.com"
+    url = "https://osumekeys.com/collections/keycaps"
     paths = get_links(url)
 
     result = pd.DataFrame(index=range(len(paths)))
@@ -164,7 +188,7 @@ def get_osume_keycaps(base, url):
         curr = requests.get(link)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
-        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "vender"] = "Osume"
         result.loc[i, "url"] = link
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
@@ -179,10 +203,15 @@ def get_osume_keycaps(base, url):
     
         
     result["live"] = True
+    result = result[result["in_stock"]]
+    result = result.drop(["in_stock"], axis=1)
     
     return result
 
-def get_kono_keycaps(base, url, price_query, in_stock_query):
+def get_kono_keycaps():
+    base = "https://kono.store"
+    url = "https://kono.store/collections/keycap-sets"
+    
     paths = get_links(url)
 
     result = pd.DataFrame(index=range(len(paths)))
@@ -191,7 +220,7 @@ def get_kono_keycaps(base, url, price_query, in_stock_query):
         curr = requests.get(link)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
-        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "vender"] = "Kono"
         result.loc[i, "url"] = link
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
@@ -199,10 +228,7 @@ def get_kono_keycaps(base, url, price_query, in_stock_query):
         
         result.loc[i, "price"] = text.find(class_="price__current").contents[1].text.strip("\n\\ ")
         
-        result[i, "live"] = text.find(class_="product__badge product__badge--status product__badge--custom badge--custom") == None
-    
-        
-    
+        result.loc[i, "live"] = text.find(class_="product__badge product__badge--status product__badge--custom badge--custom") == None
     
     return result
 
@@ -218,7 +244,7 @@ def get_keys_keycaps():
         curr = requests.get(link)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
-        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "vender"] = "The Key Company"
         result.loc[i, "url"] = link
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
@@ -226,7 +252,8 @@ def get_keys_keycaps():
         
         result.loc[i, "price"] = text.find(class_="product-single__price").text.strip("\n\\ ")
         
-    result["in_stock"] = True
+    result = result[result["product"] != "Gift Card"]
+    result["live"] = True
     
     return result
 
@@ -246,18 +273,15 @@ def get_kbd_keycaps():
                 paths.append(ref)
     paths = list(set(paths))
     
-    print(paths)
-    
     result = pd.DataFrame(index=range(len(paths)))
     for i, path in enumerate(paths):
         link = base + path
-        print(link)
         if ("https://kbdfans.com" in path):
             link = base + path[19:]
         curr = requests.get(link, headers=headers)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
-        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "vender"] = "KBDFans"
         result.loc[i, "url"] = link
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
@@ -270,15 +294,10 @@ def get_kbd_keycaps():
         
         if text.find(class_="badgetitle primebText prime-font-adjust") != None:
             result.loc[i, "live"] = text.find(class_="badgetitle primebText prime-font-adjust").text.strip(" \n \\")
+        
+    pattern = re.compile('[\W_]+')    
+    result["live"].apply(lambda x: pattern.sub('', x))
+    
+    result["live"] = np.where(result["live"] == "PreOrder", False, True)
     
     return result
-
-
-# get_dang("https://dangkeebs.com", "https://dangkeebs.com/collections/keycaps",).to_csv("dang.csv")
-# get_cannon_keycaps("https://cannonkeys.com", "https://cannonkeys.com/collections/keycaps").to_csv("cannon.csv")
-# get_space_keycaps("https://spaceholdings.net", "https://spaceholdings.net/collections/keycaps").to_csv('space.csv')
-# get_keycaps("https://kbdfans.com", "https://kbdfans.com/collections/keycaps", "theme-money large-title", True, "badgetitle primebText prime-font-adjust ").to_csv("kbd.csv")
-
-# get_keys_keycaps().to_csv("keys.csv")
-
-get_kbd_keycaps().to_csv("waaaaa.csv")

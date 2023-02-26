@@ -22,7 +22,10 @@ def get_links(url, query="products"):
                 paths.append(ref)
     return list(set(paths))
 
-def get_novelkeys_switches(base, url):
+def get_novelkeys_switches():
+    base = "https://novelkeys.com"
+    url = "https://novelkeys.com/collections/switches"
+    
     url = url + "?page="
     paths = []
     prices = []
@@ -38,7 +41,6 @@ def get_novelkeys_switches(base, url):
             prices.append(price.text.strip())
         
     prices = prices[::2]
-    print(prices)
 
     result = pd.DataFrame(index=range(len(paths)))
     for i, path in enumerate(paths):
@@ -51,16 +53,17 @@ def get_novelkeys_switches(base, url):
         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
         result.loc[i, "image"] = text.find("meta", {"property": "og:image"}).get("content")
-        print(path)
         if text.find(attrs="product-flag") == None:
             continue
-        result.loc[i, "status"] = text.find(attrs="product-flag").text.strip("\n\\ ")
+        result.loc[i, "in_stock"] = text.find(attrs="product-flag").text.strip("\n\\ ")
         
         result.loc[i, "quantity"] = text.find(class_="product-single__subtitle").text.strip("\n\\ ")
-        
-        
     
     result["prices"] = prices
+    
+    result = result[result["in_stock"].isin(["IN STOCK", "LIMITED STOCK"])]
+    result = result.drop(["in_stock"])
+    result["live"] = True
     
     return result
 
@@ -94,6 +97,10 @@ def get_dang_switches():
                 result.loc[i, "kit"] = str(option.contents).strip("[\n]\\n' ")
                 
         result.loc[i, "quantity"] = ' '.join(x.text.strip() for x in text.find("div", class_="product-single__description rte").contents)
+        
+    result = result[result["in_stock"] == "Add to cart"]
+    result["live"] = result["product"].str.contains("\[")
+    result = result.drop(["availability", "kit"], axis=1)
     
     return result
 
@@ -136,6 +143,9 @@ def get_cannon_switches():
             result.loc[i, 'quantity'] = text.find(class_="option-selector__btns").contents[0].get("value")
         
         # result.loc[i, "in_stock"] = text.find(attrs=in_stock_query).text.strip("\n\\ ")
+    
+    result = result[result["in_stock"]]
+    result = result.drop(["in_stock"], axis=1)
     
     return result
 
@@ -197,8 +207,9 @@ def get_keys_switches():
             result.loc[i, "quantity"] = temp
         elif text.find(attrs={"itemprop": "description"}) != None:
             result.loc[i, "quantity"] = ' '.join(x.text.strip() for x in text.find(attrs={"itemprop": "description"}).contents)
-        
-    result["in_stock"] = True
+    
+    result = result[result["product"] != "Gift Card"]
+    result["live"] = True
     
     return result
 
@@ -218,8 +229,6 @@ def get_kbd_switches():
                 paths.append(ref)
     paths = list(set(paths))
     
-    print(paths)
-    
     result = pd.DataFrame(index=range(len(paths)))
     for i, path in enumerate(paths):
         link = base + path
@@ -227,30 +236,28 @@ def get_kbd_switches():
             link = base + path[19:]
         curr = requests.get(link, headers=headers)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
-        try:
-            result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
-            result.loc[i, "url"] = link
-            result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
-            result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
-            result.loc[i, "image"] = text.find("meta", {"property": "og:image"}).get("content")
+        
+        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "url"] = link
+        result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
+        result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
+        result.loc[i, "image"] = text.find("meta", {"property": "og:image"}).get("content")
+        
+        if text.find(class_="theme-money large-title") != None:
+            result.loc[i, "price"] = text.find(class_="theme-money large-title").text.strip("\n\\ ")
             
-            if text.find(class_="theme-money large-title") != None:
-                result.loc[i, "price"] = text.find(class_="theme-money large-title").text.strip("\n\\ ")
-                
-            result.loc[i, "live"] = True
+        result.loc[i, "live"] = True
+        
+        if text.find(class_="badgetitle primebText prime-font-adjust") != None:
+            result.loc[i, "live"] = text.find(class_="badgetitle primebText prime-font-adjust").text.strip(" \n \\")
             
-            if text.find(class_="badgetitle primebText prime-font-adjust") != None:
-                result.loc[i, "live"] = text.find(class_="badgetitle primebText prime-font-adjust").text.strip(" \n \\")
-                
-            regex = re.match("[0-9]{2,3} switches Per Pack", curr.text, re.IGNORECASE)
-            if regex:
-                result.loc[i, "quantity"] = re.search("[0-9]{2,3} Per Pack", text.text, re.IGNORECASE).group()
-        except:
-            print(link)
+        regex = re.search("[0-9]{2,3} switches per pack", curr.text, re.IGNORECASE)
+        if regex:
+            result.loc[i, "quantity"] = regex.group()
+            
+    pattern = re.compile('[\W_]+')    
+    result["live"].apply(lambda x: pattern.sub('', x))
+    
+    result["live"] = np.where(result["live"] == "PreOrder", False, True)
     
     return result
-
-# get_novelkeys_keycaps("https://novelkeys.com", "https://novelkeys.com/collections/switches").to_csv("novel.csv")
-# get_dang_switches("https://dangkeebs.com", "https://dangkeebs.com/collections/switches").to_csv("ditches.csv")
-# get_kono_switches("https://kono.store", "https://kono.store/collections/switches").to_csv("konoswitch.csv")
-get_kbd_switches().to_csv("kbdswitch.csv")
