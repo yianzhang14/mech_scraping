@@ -4,6 +4,9 @@ import pandas as pd
 import bs4 as bs
 import requests
 
+headers = {
+    'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36'}
+
 MAX_PAGES = 10
 
 def get_links(url, query="products"):
@@ -11,7 +14,7 @@ def get_links(url, query="products"):
 
     paths = []
     for i in range(1, MAX_PAGES + 1):
-        data = requests.get(url + str(i))
+        data = requests.get(url + str(i), headers=headers)
         html = bs.BeautifulSoup(data.text, 'html.parser')
         for link in html.find_all('a'):
             ref = link.get('href')
@@ -24,7 +27,7 @@ def get_novelkeys_keycaps(base, url):
     paths = []
     prices = []
     for i in range(1, MAX_PAGES + 1):
-        data = requests.get(url + str(i))
+        data = requests.get(url + str(i), headers=headers)
         html = bs.BeautifulSoup(data.text, 'html.parser')
         for link in html.find_all('a'):
             ref = link.get('href')
@@ -54,13 +57,13 @@ def get_novelkeys_keycaps(base, url):
     
     return result
 
-def get_dang(base, url):
+def get_dang_keycaps(base, url):
     paths = get_links(url)
 
     result = pd.DataFrame(index=range(len(paths)))
     for i, path in enumerate(paths):
         link = base + path
-        curr = requests.get(link)
+        curr = requests.get(link, headers=headers)
         text = bs.BeautifulSoup(curr.text, 'html.parser')
         
         result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
@@ -84,35 +87,38 @@ def get_dang(base, url):
     return result
 
 
-# def get_cannon_keycaps(base, url, price_query, preorder_type, in_stock_query):
-#     paths = get_links(url)
+def get_cannon_keycaps(base, url):
+    paths = get_links(url)
 
-#     result = pd.DataFrame(index=range(len(paths)))
-#     for i, path in enumerate(paths):
-#         link = base + path
-#         curr = requests.get(link)
-#         text = bs.BeautifulSoup(curr.text, 'html.parser')
+    result = pd.DataFrame(index=range(len(paths)))
+    for i, path in enumerate(paths):
+        link = base + path
+        if ("https://cannonkeys.com" in path):
+            link = base + path[22:]
+        curr = requests.get(link, headers=headers)
+        text = bs.BeautifulSoup(curr.text, 'html.parser')
         
-#         result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
-#         result.loc[i, "url"] = link
-#         result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
-#         result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
-#         result.loc[i, "image"] = text.find("meta", {"property": "og:image"}).get("content")
+        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "url"] = link
+        result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
+        result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
+        result.loc[i, "image"] = text.find("meta", {"property": "og:image"}).get("content")
         
-#         if text.find(class_=price_query) != None:
-#             result.loc[i, "price"] = text.find(class_=price_query).text.strip("\n\\ ")
+        result.loc[i, "live"] = True
+        result.loc[i, "in_stock"] = True
+        
+        if text.find(class_="current-price theme-money") != None:
+            result.loc[i, "price"] = text.find(class_="current-price theme-money").text.strip("\n\\ ")
 
-#         if preorder_type:
-#             pass
-#         else:
-#             pass
+        if text.find(class_="confirm-checkbox flexrow") != None:
+            result.loc[i, "live"] = False
+            
+        if text.find(class_="product-unavailable") != None:
+            result.loc[i, "in_stock"] = False
         
-#         if i == 1:
-#             break
-        
-#         # result.loc[i, "in_stock"] = text.find(attrs=in_stock_query).text.strip("\n\\ ")
+        # result.loc[i, "in_stock"] = text.find(attrs=in_stock_query).text.strip("\n\\ ")
     
-#     return result
+    return result
 
 def get_space_keycaps(base, url):
     url = url + "?page="
@@ -222,15 +228,57 @@ def get_keys_keycaps():
         
     result["in_stock"] = True
     
-        
+    return result
+
+def get_kbd_keycaps():
+    base = "https://kbdfans.com"
+    url = "https://kbdfans.com/collections/keycaps"
     
+    search = "https://kbdfans.com/collections/keycaps?filter.v.availability=1&page="
+    
+    paths = []
+    for i in range(1, MAX_PAGES + 1):
+        data = requests.get(search + str(i), headers=headers)
+        html = bs.BeautifulSoup(data.text, 'html.parser')
+        for link in html.find_all('a'):
+            ref = link.get('href')
+            if ref != None and "products" in ref:
+                paths.append(ref)
+    paths = list(set(paths))
+    
+    print(paths)
+    
+    result = pd.DataFrame(index=range(len(paths)))
+    for i, path in enumerate(paths):
+        link = base + path
+        print(link)
+        if ("https://kbdfans.com" in path):
+            link = base + path[19:]
+        curr = requests.get(link, headers=headers)
+        text = bs.BeautifulSoup(curr.text, 'html.parser')
+        
+        result.loc[i, "vender"] = text.find("meta", {"property": "og:site_name"}).get("content")
+        result.loc[i, "url"] = link
+        result.loc[i, "product"] = text.find("meta", {"property": "og:title"}).get("content")
+        result.loc[i, "description"] = text.find("meta", {"property": "og:description"}).get("content")
+        result.loc[i, "image"] = text.find("meta", {"property": "og:image"}).get("content")
+        
+        if text.find(class_="theme-money large-title") != None:
+            result.loc[i, "price"] = text.find(class_="theme-money large-title").text.strip("\n\\ ")
+            
+        result.loc[i, "live"] = True
+        
+        if text.find(class_="badgetitle primebText prime-font-adjust") != None:
+            result.loc[i, "live"] = text.find(class_="badgetitle primebText prime-font-adjust").text.strip(" \n \\")
     
     return result
 
 
 # get_dang("https://dangkeebs.com", "https://dangkeebs.com/collections/keycaps",).to_csv("dang.csv")
-# get_keycaps("https://cannonkeys.com", "https://cannonkeys.com/collections/keycaps", "current-price theme-money", True, "no").to_csv("cannon.csv")
+# get_cannon_keycaps("https://cannonkeys.com", "https://cannonkeys.com/collections/keycaps").to_csv("cannon.csv")
 # get_space_keycaps("https://spaceholdings.net", "https://spaceholdings.net/collections/keycaps").to_csv('space.csv')
 # get_keycaps("https://kbdfans.com", "https://kbdfans.com/collections/keycaps", "theme-money large-title", True, "badgetitle primebText prime-font-adjust ").to_csv("kbd.csv")
 
-get_keys_keycaps().to_csv("keys.csv")
+# get_keys_keycaps().to_csv("keys.csv")
+
+get_kbd_keycaps().to_csv("waaaaa.csv")
